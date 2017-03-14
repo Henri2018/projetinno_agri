@@ -1,0 +1,4 @@
+Preuve
+Ncrit1	1
+Ncrit2	3
+Ncrit3	4
