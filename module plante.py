@@ -115,6 +115,46 @@ def nombreDeGrains(RedNG,IC,DC):
     RNG = min(1,RedNG[0]-(RedNG[1]*IC*DC))
     return(RNG)
     
-    ##APRES FLORAISON
+##APRES FLORAISON
+
+#Biomasse potentielle
+def BMpot(n,MS1Gpot,P1Gmax,P1G0,DC,JN):
+    #P1G max le poids d’un grain maximum ; 
+    #P1G 0 le poids d’un grain à floraison ; 
+    #DC représente la durée maximale de la phase de remplissage des grains en jours normalisés
+    #JN la durée en jours normalisés de la phase floraison
+    
+    MS1Gpot[n]=(P1Gmax/1000)/(1+(((P1Gmax-P1G0)/P1G0)**((DC/2-JN.get(n))/(DC/2))))
+    return()
+#Accumulation réelle de matière sèche
+def MSG(n,MS1Gpot,NGM,QNG,MSaa,MS,MSflo,WSC0,WSC):
+    # QNGj la quantité d’azote des grains le jour j
+    # MSaa le coefficient d’estimation de la biomasse des grains issue du carbone transféré avec les acides aminés
+    # MSj la matière sèche aérienne de la culture du jour j
+    # MSflo la matière sèche aérienne de la culture à floraison, donc MS d'avant floraison le dernier jour
+    # WSC0 la quantité de sucres solubles stockés à floraison et remobilisables
+    # WSC le coefficient de remobilisation des sucres solubles.
+    QNG(n,d)
+    MSG[n]=MSG.get(n-1)+min(MS1Gpot.get(n)*NGM**2,((QNG.get(n)*MSaa)/10+(MS.get(n)-MSflo)/10 + (WSC0*WSC)/10))
+    return(MSG.get(n))
+def QNG(n,MSG,aremob,QNaerien,QNflo,Rem1,JNMS): #il faut encore trouver les valeurs des constantes
+    #Rem1 le coefficient de dégradation des protéines
+    #JNMS j la somme des jours normalisés au jour j
+    #La quantite d'azote remobilisable est fixe a la floraison
+    QNrem=QNflo*aremob
+    Vitrem[n]=Rem1*JNMS.get(n)
+    if SDT.get(n)<(SDTflo+DC/2):
+        QNG[n]=QNG.get(n-1)+min(MSG.get(n)*0.028,QNrem*Vitrem+(QNaerien.get(n)-QNflo))
+    else:
+        QNG[n]=QNG.get(n-1)+QNrem*Vitrem+(QNaerien.get(n)-QNflo)
+    return(QNG.get(n))
+
+#Accumulation de matiere seche et d'azote dans la culture entre floraison et recolte
+def GLAI(n,LAIflo,SENESC,QNveg,QNaerflo,QNGflo):
+    # LAIflo la surface foliaire de la culture à floraison
+    # SENESC liste des coefficients de réduction de la surface foliaire sous l’effet de la remobilisation de l’azote.
+    # QNveg représente la quantité d’azote des parties végétatives de la culture
+    # QNaerflo la quantité d’azote des parties aériennes de la culture à floraison
+    GLAI[n] = min(GLAI.get(n−1); LAIflo * (SENESC[0] * ln(SENESC[1] * (QNveg.get(n) /(QNarflo − QNGflo)) + SENESC[2])))
     
     
