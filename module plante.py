@@ -18,11 +18,14 @@ ei=list()
 eb=list()
 INNI=0
 INN0=0
+
+## AVANT FLORAISON
+
 #module matière sèche 
 def Matseche(n,MS,PARi,eimax,k,ebmax,LAI):
     '''j'ai enlevé le LAI, on le calcule non ? NON
     n: jour concerné
-    MS: matière séche dans la plante, dictionnaire contenant les jours av n
+    MS: matière séche dans la plante, dictionnaire contenant les jours av n - clés = entier, valeurs = chiffres
     PARi: rayonnement photosynthètique actif, dictionnaire contenant les n jours
         PARi[n]=D*RG[n]
     RG :  rayonnement global incident, dictionnaire
@@ -42,13 +45,27 @@ def Matseche(n,MS,PARi,eimax,k,ebmax,LAI):
     '''
     effintercept(eimax,k,LAI)
     econvlum(ebmax,k,LAI)
-    MS+=[MS(n-1)+ei[n]*eb[n]*PARi[n]]
-    return MS
+    MS[n]=[MS.get(n-1)+ei[n]+eb[n]*PARi[n]]  #ça serait plutôt +eb*PARi et on crée la nouvelle valeur dans MS associee a n
+    return MS.get(n)
 def effintercept(eimax,k,LAI): 
     '''j'ai enlevé le LAI, on le calcule non ? NON LAI = D*QNcrit
     '''
     ei.append(eimax*(1-exp(-k*LAI)))
+    return
 
+def Qazote(n, QN, MS, MN, R, Vmax, Tmoy, Nmax, MSeuil):
+    #ici on va calculer la quantité d'azote accumulée dans la culture
+    # MN est calculé par le module sol
+    # Nmax contient les valeurs Nmax1 et Nmax2 qui donnent la teneur maximale en azote de la culture selon le niveau de biomasse du jour
+    b = MS.get(n)/1000-MSeuil 
+    if b<0:
+        perc_Nmax=Nmax[0]
+    else :
+        perc_Nmax=Nmax[1]
+    QN[n]=QN.get(n-1)+ min(MN.get(n), min((R*MS.get(n-1)*perc_Nmax)-(MS.get(n)*perc_Nmax),Vmax*Tmoy))
+    return()
+
+# Effets température et carence azote
 def econvlum(ebmax,Redeb):
     '''
     ebmax: constante permettant de calculer eb, on supposera eb=ebmax en 1ère approche
@@ -61,7 +78,7 @@ def econvlum(ebmax,Redeb):
     '''
     
     eb.append(min(ebmax,Redeb[0]*(1-Redeb[1]*exp(-Redeb[2]*INNI[n]))))
-    
+    return()
 
 def INNI(Ncrit,bm_booleen):
     '''
@@ -80,4 +97,24 @@ def INNI(Ncrit,bm_booleen):
     perc_N= # mesuré
     INN1=(perc_N/perc_Ncrit)
     INNI=
+    return INNI
+
+def LAIcarence(n,LAI,LAIc,RedLAI,INNI):
+    # n est le jour considéré
+    # LAI l'indice foliaire sans carence
+    # LAI l'indice foliaire avec carence
+    # RedLAI la liste des coefficients de reduction d'expansion foliaire
+    # INNI est l'indice de nutrition azotée intégrée
+    LAIc[n]=min(LAIc.get(n-1), LAI(n)*RedLAI[0]*(1-(RedLAI[1]*exp(-RedLAI[2]*INNI.get(n)))))
+    return
+
+def nombreDeGrains(RedNG,IC,DC):
+    #RedNG contient les coefficients 
+    #IC représente l'intensité de la carence azotée
+    #DC la durée de la carence
+    RNG = min(1,RedNG[0]-(RedNG[1]*IC*DC))
+    return(RNG)
+    
+    ##APRES FLORAISON
+    
     
