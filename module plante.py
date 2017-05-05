@@ -28,8 +28,12 @@ QN=dict()
 Tmoy=dict()
 PARi=dict()
 LAI= dict()
+MS1Gpot = {}
+MSG={}
+QNG = {}
+QNaerien = {}
 
-
+DJ = list() #liste des degres-jours
 ei=list()
 eb=list()
 INNI=0
@@ -279,39 +283,92 @@ def nombreDeGrains(RedNG,IC,DC):
     return(RNG)
     
 ##APRES FLORAISON
-
-#Biomasse potentielle
-def BMpot(n,MS1Gpot,P1Gmax,P1G0,DC,JN):
-    #P1G max le poids d’un grain maximum ; 
-    #P1G 0 le poids d’un grain à floraison ; 
-    #DC représente la durée maximale de la phase de remplissage des grains en jours normalisés
-    #JN la durée en jours normalisés de la phase floraison
+#Calcul de l'azote accumulé dans les grains au jour n, WSC0
+#Il manque : calcul JN, MSflo (quel est le jour de la floraison), QNflo, Rem1, JNMS
+def QNGrains(n):
+    '''
+    n: jour concerné
+    MSG: matière séche dans les grains, dictionnaire contenant les jours av n
+    QNflo : quantité d'azote à la floraison, calculée grâce au module précédent
+    aremob : coefficient à estimer grâce à littérature
+    Rem1 le coefficient de dégradation des protéines
+    JNMSn la somme des jours normalisés au jour n.
+    eb : liste des efficiences de conversion de la culture (tableau où indice = jour)
+    ebflo : efficience de conversion du rayonnement à floraison (obtenue grâce au module avant floraison)
+    SENESCeb : coefficient de réduction de l’efficience de conversion du fait des transferts d’azote vers les grains.
+    DC : durée maximale de la phase de remplissage des grains en jours normalisés
+    QNcrit
+    Nous pouvons étudier 2 cas de figure différents pour l'accumulation d'azote dans les grains :
+        Cas 1 : remplissage des grains (SDTn < SDT flo + DC/2)
+        Cas 2 : demande en azote des grains n'intervient plus
+    Nous pouvons aussi étudier deux cas pour l'accumulation d'azote dans la culture selon la somme des degrés-jours depuis le semis au jour j :
+    	Cas 1 : SDJn < 200
+    	Cas 2 : SDJn >= 200
+    	Pour un jour donné, on a DJ = (Tmin+Tmax)/2, la température de base est considérée nulle pour le blé
+    '''
+    #données dont on a besoin
+    #jour de floraison :
+    f = flo
+    MSflo = Matseche(f).get(f)
+    BMpot(n,MS1Gpot,JN.get(n))
+    MSG(n,MSG,MS1Gpot,QNG,MSaa,MSflo,WSC0) #on fait appel à la fonction du module avant floraison pour obtenir MSflo
+    QNG(n,QNG,MSG,QNaerien,QNflo,Rem1,JNMS)
+    	
+    return ()
     
+    
+#Biomasse potentielle
+def BMpot(n,MS1Gpot,JN):
+    #P1G max le poids d’un grain maximum, littérature : P1G max(16% H) 48.5 (Gate, 1995) 
+    P1Gmax = 48.5
+    #P1G 0 le poids d’un grain à floraison, littérature : (Girard, 1997)
+    P1G0 = 0.6
+    #DC représente la durée maximale de la phase de remplissage des grains en jours normalisés
+    DC = 90
+    #JN la durée en jours normalisés de la phase floraison, (jours normalisés : Un jour normalisé correspond à un jour à une température de 15°C
+	#et à une humidité du sol à la capacité au champ), sera donné par un outil de calcul
     MS1Gpot[n]=(P1Gmax/1000)/(1+(((P1Gmax-P1G0)/P1G0)**((DC/2-JN.get(n))/(DC/2))))
     return()
+    
 #Accumulation réelle de matière sèche
-def MSG(n,MS1Gpot,NGM,QNG,MSaa,MS,MSflo,WSC0,WSC):
-    # QNGj la quantité d’azote des grains le jour j
+def MSG(n,MSG,MS1Gpot,QNG,MSaa,MS,f,WSC0): #f est le jour de floraison
+    # QNG : dictionnaire contenant la quantité d’azote des grains le jour n
     # MSaa le coefficient d’estimation de la biomasse des grains issue du carbone transféré avec les acides aminés
-    # MSj la matière sèche aérienne de la culture du jour j
+    # MS.get(n) la matière sèche aérienne de la culture du jour n
     # MSflo la matière sèche aérienne de la culture à floraison, donc MS d'avant floraison le dernier jour
+    MSflo = MS.get(f)
+    # NGM2 : est calcul par une fonction auxiliaire
+    NGM2 = NGM2()
     # WSC0 la quantité de sucres solubles stockés à floraison et remobilisables
     # WSC le coefficient de remobilisation des sucres solubles.
-    QNG(n,d)
-    MSG[n]=MSG.get(n-1)+min(MS1Gpot.get(n)*NGM**2,((QNG.get(n)*MSaa)/10+(MS.get(n)-MSflo)/10 + (WSC0*WSC)/10))
-    return(MSG.get(n))
-def QNG(n,MSG,aremob,QNaerien,QNflo,Rem1,JNMS): #il faut encore trouver les valeurs des constantes
+    WSC = 0.75
+    QNG(n,QNG,MSG,QNaerien,QNflo,d)
+    MSG[n]=MSG.get(n-1)+min(MS1Gpot.get(n)*NGM2,((QNG.get(n)*MSaa)/10+(MS.get(n)-MSflo)/10 + (WSC0*WSC)/10))
+    return()
+
+def QNG(n,QNG,MSG,QNaerien,QNflo,Rem1,JNMS): #il faut encore trouver les valeurs des constantes
     #Rem1 le coefficient de dégradation des protéines
     #JNMS j la somme des jours normalisés au jour j
     #La quantite d'azote remobilisable est fixe a la floraison
+    aremob = 0.68 #donnée littérature
     QNrem=QNflo*aremob
     Vitrem[n]=Rem1*JNMS.get(n)
     if SDT.get(n)<(SDTflo+DC/2):
         QNG[n]=QNG.get(n-1)+min(MSG.get(n)*0.028,QNrem*Vitrem+(QNaerien.get(n)-QNflo))
     else:
         QNG[n]=QNG.get(n-1)+QNrem*Vitrem+(QNaerien.get(n)-QNflo)
-    return(QNG.get(n))
+    return()
 
+def NGM2():
+	#on va utiliser les données de la littérature pour RedNG1 et RedNG2:
+	RedNG1 = 1.00355
+	RedNG2 = 0.0011
+	IC = 
+	DC = 90
+	NGmax = 27000
+	RNG =min(1,RedNG1- (RedNG2*IC*DC))
+	return(NGmax*NGmax*RNG)
+	
 #Accumulation de matiere seche et d'azote dans la culture entre floraison et recolte
 def GLAI(n,LAIflo,SENESC,QNveg,QNaerflo,QNGflo):
     # LAIflo la surface foliaire de la culture à floraison
@@ -319,5 +376,16 @@ def GLAI(n,LAIflo,SENESC,QNveg,QNaerflo,QNGflo):
     # QNveg représente la quantité d’azote des parties végétatives de la culture
     # QNaerflo la quantité d’azote des parties aériennes de la culture à floraison
     GLAI[n] = min(GLAI.get(n−1); LAIflo * (SENESC[0] * ln(SENESC[1] * (QNveg.get(n) /(QNarflo − QNGflo)) + SENESC[2])))
-    
-    
+
+def QNaerien(n,QNaerien,QN,MS):
+	#DJ est la liste des degres-jours
+	sdj = 0
+	for dj in DJ[:n]:
+		sdj += dj
+	if sdj < 200 :
+		QNaerien[n] = QN.get(n-1)+ min(MS.get(j)*pour_Nmax,0.5*Tmoy[n])
+	else:
+		QNaerien[n] = QN.get(n-1)+ min(MS.get(j)*pour_N[n-1]*Tmoy[n])
+	return()
+
+	
