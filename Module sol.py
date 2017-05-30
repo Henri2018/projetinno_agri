@@ -25,11 +25,13 @@ def Mhumus(T) :
         Mh=0.23*math.exp(0.115*(np.average(T)-15))*1000*(1.3/(11*60))
         return Mh
     
-def sol(n,T,X):
+def sol(n,T,X,P):
     f=fmin(n,T)
     T1=np.average(T)
-    Sol=Mresidu(f)+Mcompoorga(f)+Mhumus(T1)+0.2*X[n]
+    Sol=Mresidu(f)+Mcompoorga(f)+Mhumus(T1)+0.2*X[n]-P
     #X est la quantité d'engrais effective
+    #P est la partie d'azote absorbée au temps j
+    #0.2 est le CAU dans la literature
     return Sol
 #fdc le coefficient relatif à la gestion de la parcelle considérée
 #Norganique représente le pourcentage d’azote total de la parcelle
