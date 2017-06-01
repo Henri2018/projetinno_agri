@@ -1,13 +1,14 @@
-Qsolinit,120
+Qsolinit,90
 flo,219
 eWinter,80
+dateepis1cm,150
 Norg,4305
 Da,1.4
 ep,120
 arg,0.35
 CaCO3,0.4
-Dapport1,120
-Qapport1,60
+Dapport1,90
+Qapport1,30
 Dapport2,150
 Qapport2,40
 Dapport3,0

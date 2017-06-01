@@ -49,7 +49,7 @@ def lectureControle(controlData):
     WS10M = {} #Wind Speed At 10 m Above The Surface Of The Earth (m/s)
     for k in range(n):
         DOY[k]=controlData["DOY"][k]-299
-        IRRAD=controlData["swv_dwn"][k]
+        IRRAD[k]=controlData["swv_dwn"][k]
         T2M[k]=controlData["T2M"][k]
         T2MN[k] = controlData["T2MN"][k]
         T2MX[k] = controlData["T2MX"][k]
@@ -78,6 +78,7 @@ def attributionParametres1(par):
     eimax=par['eimax']
     k=par['k']
     D=par['D']
+    C=par['C']
     R=par['R']
     Vmax=par['Vmax']
     #I have changed Ncrit into 3 coeff
@@ -99,13 +100,28 @@ def attributionParametres1(par):
     Tmax=par['Tmax']
     Toptimum=par['Toptimum']
     MSseuil= par['MSseuil']
-
-    return(alpha,delta,beta,gamma,fsdc,Mr,Ma,mu,l,ebmax1,ebmax2,eimax,k,D,R,Vmax,Ncrit1,Ncrit2,Ncrit3,Nmax1,Nmax2,eb1,eb2,eb3,LAI1,LAI2,LAI3,RNG1,RNG2,NGmax,Tmin,Tmax,Toptimum,MSseuil)
+    ebflo=par['ebflo']
+    SENESCeb=par['SENESCeb']
+    percNgrainflo=par['percNgrainflo']
+    P1Gmax=par['P1Gmax']
+    RDTmax=par['RDTmax']
+    HP1Gmax=par['HP1Gmax']
+    P1G0=par['P1G0']
+    WSC=par['WSC']
+    MSaa=par['MSaa']
+    aremob=par['aremob']
+    Rem1=par['Rem1']
+    SENESC1=par['SENESC1']
+    SENESC2=par['SENESC2']
+    SENESC3=par['SENESC3']
+    DC=par['DC']
+    return(alpha,delta,beta,gamma,fsdc,Mr,Ma,mu,l,ebmax1,ebmax2,eimax,k,D,C,R,Vmax,Ncrit1,Ncrit2,Ncrit3,Nmax1,Nmax2,eb1,eb2,eb3,LAI1,LAI2,LAI3,RNG1,RNG2,NGmax,Tmin,Tmax,Toptimum,MSseuil,ebflo,SENESCeb,percNgrainflo,P1Gmax,RDTmax,HP1Gmax,P1G0,WSC,MSaa,aremob,Rem1,SENESC1,SENESC2,SENESC3,DC)
 
 def attributionParametres2(exp):
     Qsolinit=exp['Qsolinit']
     flo = exp['flo']
     eWinter=exp['eWinter']
+    dateepis1cm=exp['dateepis1cm']
     Norg=exp['Norg']
     Da=exp['Da']
     ep=exp['ep']
@@ -122,7 +138,7 @@ def attributionParametres2(exp):
     Dapport5 = exp['Dapport5']
     Qapport5 = exp['Qapport5']
 
-    return(Qsolinit,flo,eWinter,Norg,Da,ep,pc_arg,CaCO3,Dapport1,Qapport1,Dapport2,Qapport2,Dapport3,Qapport3,Dapport4,Qapport4,Dapport5,Qapport5)
+    return(Qsolinit,flo,eWinter,dateepis1cm,Norg,Da,ep,pc_arg,CaCO3,Dapport1,Qapport1,Dapport2,Qapport2,Dapport3,Qapport3,Dapport4,Qapport4,Dapport5,Qapport5)
 
 ###############################################################################
 ##################            Initial state       #############################
@@ -133,6 +149,9 @@ def attributionParametres2(exp):
 MS={0 : 178.3} #Le Moulon, Arche genotype, 2001, Matiere seche a la sortie de l'hiver
 LAI={0:0}
 SDJ={0:0}
+SDT={0:0}
+QN={0 : 0.1, 1 : 0.2}
+Qsol={0:0}
 INN_dicti={}
 
 SUM_INN_Defficiency = 0
@@ -143,21 +162,26 @@ isDefficiencyYesterday = False
 min_INN=1
 Sf=0
 precision=10**(-6)
-#############
-# CORRECTION
-#############
-QN={0 : 0.1, 1 : 0.2, 2 : 0.3} #dict()
-N_n=0.1
-Qsol={0:0}
+NGM=0
+N_n=QN[1]-QN[0]
 
 
-###CONTROL
-#############
-# CORRECTION
-#############
-Tmoyenne={1 : 7.5, 2 : 13.7} #value 1 corresponds to Oct-March whereas 2 for March-August
-GR = {1 : 422,2 : 1602} #global radiation, periods divided as before
-PARi = {1 : GR[1]*0.48 , 2: GR[2]*0.48 }
+MSflo=0
+QNflo=0
+SDTflo=0
+QNGflo=0
+LAIflo=0
+QNaerflo=0
+perc_Naer=0
+
+S_JN=0
+Hum={0:0}
+MS1Gpot=dict()
+MSGn=dict()
+Vitrem=dict()
+QNGn=dict()
+QNaern=dict()
+QNveg=dict()
 
 
 ###############################################################################
@@ -165,7 +189,7 @@ PARi = {1 : GR[1]*0.48 , 2: GR[2]*0.48 }
 ###############################################################################
 
 
-def fmin(n,T,TSR):
+def fmin(T,TSR):
     # T, average temperature of day n
     #n, day number
     #TSR, Average temperature between the end of winter and crop
@@ -224,28 +248,16 @@ def apport_engrais(n):
 
 def CalculSol(n,Q_plante_n):
     global Sf
-    f=fmin(n,T2M[n],averageTSR())
+    f=fmin(T2M[n],averageTSR())
     Sf+=f
-    #if n>=7:
-    if n<0:
-        print("CaU",CaU(MS[n],MS[n-7],SDJ[n],SDJ[n-7])/100)
+    if n>=7:
         Sol = Mresidu(f,Sf) + Mcompoorga(f) + Mhumus(T2M[n]) + CaU(MS[n],MS[n-7],SDJ[n],SDJ[n-7])/100 * apport_engrais(n) - Q_plante_n+Qsol[n]
     else:
         if n!=0:
             Sol = Mresidu(f, Sf) + Mcompoorga(f) + Mhumus(T2M[n]) + Qsol[n] - Q_plante_n + 0.2*apport_engrais(n)
         else:
             Sol = Mresidu(f, Sf) + Mcompoorga(f) + Mhumus(T2M[n]) + Qsol[n]  +0.2*apport_engrais(n)
-    '''
-    print("n",n)
-    print("Mr",Mresidu(f,Sf))
-    print("Morg",Mcompoorga(f))
-    print("Mh",Mhumus(T2M[n]))
-    print("Qsol",Qsol[n])
-    print("Qplante",Q_plante_n)
-    print("Sol",Sol)
-    print("  ")'''
-    # X est la quantité d'engrais effective
-    # P est la partie d'azote absorbée au temps j
+
     # 0.2 est le CAU dans la literature
     Qsol[n+1] = Sol
 
@@ -256,9 +268,32 @@ def CalculSol(n,Q_plante_n):
 ###############################################################################
 ##################            PLANTE         ##################################
 ###############################################################################
+def modelAzodyn(n):
+    global MSflo
+    global QNflo
+    global SDTflo
+    global QNGflo
+    global LAIflo
+    global QNaerflo
+    if n<flo:
+        res=calcul_avflor(n)
+        if n==flo-1:
+            MSflo=res
+            MSGn[flo]=0
+            QNflo=QN[flo]
+            SDTflo=SDT[flo]
+            QNGflo=percNgrainflo*P1Gm()/100
+            QNGn[flo]=QNGflo
+            LAIflo=LAI[flo]
+            QNaerflo=QN[flo]/R
+            QNaern[flo]=QNaerflo
+            QNveg[flo]=QNaern[flo]-QNGn[flo]
+    else:
+        res=calcul_aprflo(n)
+    return res
 ## AVANT FLORAISON
 #module matière sèche
-def Matseche(n):
+def calcul_avflor(n):
     '''
     n: jour concerné que l'on va comparer à 141 pour savoir si on se trouve dans la periode oct-mars ou mars-aout
     MS: matiere séche dans la plante, dictionnaire contenant les jours av n
@@ -292,20 +327,17 @@ def Matseche(n):
     global Time_defficiency
     global isDefficiencyYesterday
     global N_n
+    global NGM
     MS1=MS.get(n)
     CalculSol(n,N_n)
     #test
     isnotSeuil = (MS1/1000) < MSseuil
     #On etablit la valeur des parametres de controle selon la date
-    if n<141:
-        PAR = PARi[1]
-        Tmoy = Tmoyenne[1]
+    if n<=dateepis1cm:
         ebmax=ebmax1
     else:
-        PAR = PARi[2]
-        Tmoy = Tmoyenne[2]
         ebmax = ebmax2
-
+    PAR=IRRAD[n]*C
     #initialisation
     #Calcul INN
     isTneg=T2M[n]<0
@@ -406,8 +438,9 @@ def Matseche(n):
             min_INN = INN
         if INN < 0.9:
             Global_Time_Defficiency += DJ
-    if n == flo:
+    if n+1 == flo:
         NGM = nbr_grain(1 - min_INN, Global_Time_Defficiency)
+        SDT[n+1]=JNMS(0,n+1)
     MS[n+1]=MS1
     return MS1
 
@@ -462,103 +495,120 @@ def nbr_grain(IC, DC):
 
 
 ##APRES FLORAISON
+
 #Calcul de l'azote accumulé dans les grains au jour n, WSC0
 #Il manque : calcul JN, MSflo (quel est le jour de la floraison), QNflo, Rem1, JNMS
-def QNGrains(n):
-    '''
-    n: jour concerné
-    MSG: matière séche dans les grains, dictionnaire contenant les jours av n
-    QNflo : quantité d'azote à la floraison, calculée grâce au module précédent
-    aremob : coefficient à estimer grâce à littérature
-    Rem1 le coefficient de dégradation des protéines
-    JNMSn la somme des jours normalisés au jour n.
-    eb : liste des efficiences de conversion de la culture (tableau où indice = jour)
-    ebflo : efficience de conversion du rayonnement à floraison (obtenue grâce au module avant floraison)
-    SENESCeb : coefficient de réduction de l’efficience de conversion du fait des transferts d’azote vers les grains.
-    DC : durée maximale de la phase de remplissage des grains en jours normalisés
-    QNcrit
-    Nous pouvons étudier 2 cas de figure différents pour l'accumulation d'azote dans les grains :
-        Cas 1 : remplissage des grains (SDTn < SDT flo + DC/2)
-        Cas 2 : demande en azote des grains n'intervient plus
-    Nous pouvons aussi étudier deux cas pour l'accumulation d'azote dans la culture selon la somme des degrés-jours depuis le semis au jour j :
-    	Cas 1 : SDJn < 200
-    	Cas 2 : SDJn >= 200
-    	Pour un jour donné, on a DJ = (Tmin+Tmax)/2, la température de base est considérée nulle pour le blé
-    '''
-    #données dont on a besoin
-    #jour de floraison :
-    MSflo = Matseche(flo)[flo]
-    BMpot(n,MS1Gpot,JN.get(n))
-    MSG(n,MSG,MS1Gpot,QNG,MSaa,MSflo,WSC0) #on fait appel à la fonction du module avant floraison pour obtenir MSflo
-    QNG(n,QNG,MSG,QNaerien,QNflo,Rem1,JNMS)
+def calcul_aprflo(n):
+
+    global SDJ
+    PAR = IRRAD[n] * C
+    BMpotG(n,MS1Gpot,JNMS(int(flo),n))
+     #on fait appel à la fonction du module avant floraison pour obtenir MSflo
+
+    DJ = (T2MX[n] - T2MN[n]) / 2
+    SDJ[n + 1] = DJ
+    SDT[n+1]=JNMS(0,n+1)
+    MS1 = f_cas5(n, MS[n], PAR,T2M[n])
+    delta_MS=(MS1-MS[n])/1000
+    QNinit=QNaer(n+1,delta_MS)
+    QNveg[n+1]=QNinit-QNG(n+1)
+    MSG(n)
+
 
     return ()
 
 
-# #Biomasse potentielle
-# def BMpot(n,MS1Gpot,JN):
-#     #P1G max le poids d’un grain maximum, littérature : P1G max(16% H) 48.5 (Gate, 1995)
-#     P1Gmax = 48.5
-#     #P1G 0 le poids d’un grain à floraison, littérature : (Girard, 1997)
-#     P1G0 = 0.6
-#     #DC représente la durée maximale de la phase de remplissage des grains en jours normalisés
-#     DC = 90
-#     #JN la durée en jours normalisés de la phase floraison, (jours normalisés : Un jour normalisé correspond à un jour à une température de 15°C
-# 	#et à une humidité du sol à la capacité au champ), sera donné par un outil de calcul
-#     MS1Gpot[n]=(P1Gmax/1000)/(1+(((P1Gmax-P1G0)/P1G0)**((DC/2-JN.get(n))/(DC/2))))
-#     return()
+#Biomasse potentielle
+def BMpotG(n,MS1Gpot,JN):
+	#et à une humidité du sol à la capacité au champ), sera donné par un outil de calcul
+    MS1Gpot[n]=(P1Gm()/1000)/(1+(((P1Gm()-P1G0)/P1G0)**((DC/2-JN)/(DC/2))))
 
-# #Accumulation réelle de matière sèche
-# def MSG(n,MSG,MS1Gpot,QNG,MSaa,MS,f,WSC0): #f est le jour de floraison
-#     # QNG : dictionnaire contenant la quantité d’azote des grains le jour n
-#     # MSaa le coefficient d’estimation de la biomasse des grains issue du carbone transféré avec les acides aminés
-#     # MS.get(n) la matière sèche aérienne de la culture du jour n
-#     # MSflo la matière sèche aérienne de la culture à floraison, donc MS d'avant floraison le dernier jour
-#     MSflo = MS.get(f)
-#     # NGM2 : est calcul par une fonction auxiliaire
-#     NGM2 = NGM2()
-#     # WSC0 la quantité de sucres solubles stockés à floraison et remobilisables
-#     # WSC le coefficient de remobilisation des sucres solubles.
-#     WSC = 0.75
-#     QNG(n,QNG,MSG,QNaerien,QNflo,d)
-#     MSG[n]=MSG.get(n-1)+min(MS1Gpot.get(n)*NGM2,((QNG.get(n)*MSaa)/10+(MS.get(n)-MSflo)/10 + (WSC0*WSC)/10))
-#     return()
+#moisture function
+def H(average_H):
+    return 0.2+0.8*(average_H-0.1)/(0.7-0.6)
 
-# def QNG(n,QNG,MSG,QNaerien,QNflo,Rem1,JNMS): #il faut encore trouver les valeurs des constantes
-#     #Rem1 le coefficient de dégradation des protéines
-#     #JNMS j la somme des jours normalisés au jour j
-#     #La quantite d'azote remobilisable est fixe a la floraison
-#     aremob = 0.68 #donnée littérature
-#     QNrem=QNflo*aremob
-#     Vitrem[n]=Rem1*JNMS.get(n)
-#     if SDT.get(n)<(SDTflo+DC/2):
-#         QNG[n]=QNG.get(n-1)+min(MSG.get(n)*0.028,QNrem*Vitrem+(QNaerien.get(n)-QNflo))
-#     else:
-#         QNG[n]=QNG.get(n-1)+QNrem*Vitrem+(QNaerien.get(n)-QNflo)
-#     return()
+def Humidity_fake(n):
+    Hum[n]=0.5
+#Normalised day
+def JN(n):
+    # JN la durée en jours normalises de la phase floraison, (jours normalises : Un jour normalise correspond a un jour à une temperature de 15°C
+    Humidity_fake(n)
+    res=fmin(T2M[n],Toptimum)*H(Hum[n])
+    return res
+
+def JNMS(debut,fin):
+    S=0
+    for i in range(debut,fin+1):
+        S+=JN(i)
+    return S
+
+#maximum mass of the grain
+def P1Gm():
+    return HP1Gmax*min(P1Gmax,1000*RDTmax/NGM)
+
+#Accumulation réelle de matière sèche
+def MSG(n): #f est le jour de floraison
+    # QNG : dictionnaire contenant la quantité d’azote des grains le jour n
+    # MSaa le coefficient d’estimation de la biomasse des grains issue du carbone transféré avec les acides aminés
+    # MS.get(n) la matière sèche aérienne de la culture du jour n
+    # MSflo la matière sèche aérienne de la culture à floraison, donc MS d'avant floraison le dernier jour
+    # WSC0 la quantité de sucres solubles stockés à floraison et remobilisables
+    # WSC le coefficient de remobilisation des sucres solubles.
+    MSGn[n]=MSGn[n-1]+min(MS1Gpot[n]*NGM,((QNG[n]*MSaa)/10+(MS[n]-MSflo)/10 + (WSC0*WSC)/10))
+
+def QNG(n): #il faut encore trouver les valeurs des constantes
+    #Rem1 le coefficient de dégradation des protéines
+    #JNMS j la somme des jours normalisés au jour j
+    #La quantite d'azote remobilisable est fixe a la floraison
+    QNrem=QNflo*aremob
+    Vitrem[n]=Rem1*JNMS(0,n)
+    if SDT[n]<(SDTflo+DC/2):
+        QNGn[n]=QNGn[n-1]+min(MSGn[n-1]*0.028,QNrem*Vitrem.items()[1]+QNaern[n]-QNflo)
+    else:
+        QNGn[n]=QNGn[n-1]+QNrem*Vitrem+QNaern[n]-QNflo
+    return QNGn[n]
+#Accumulation de matiere seche et d'azote dans la culture entre floraison et recolte
+def GLAI(n):
+    '''LAIflo la surface foliaire de la culture à floraison
+    SENESC liste des coefficients de réduction de la surface foliaire sous l’effet de la remobilisation de l’azote.
+    QNveg représente la quantité d’azote des parties végétatives de la culture
+    QNaerflo la quantité d’azote des parties aériennes de la culture à floraison'''
+    LAI[n] = min(LAI[n-1],LAIflo*(SENESC1*math.log(SENESC2*(QNveg[n]/(QNaerflo-QNGflo))+SENESC3)))
+    return LAI[n]
+
+def QNaer(i,MS1):
+    #DJ est la liste des degres-jours
+    global perc_Naer
+    sdj = 0
+    for dj in (list(SDJ.items())[:i]):
+        sdj += dj[1]
+    if sdj < 200:
+        if MS1/1000<MSseuil:
+            QNaern[i] = QN[i-1]+ min(Qsol[i-1],min(MS1*Nmax1,Vmax*T2M[i]))
+        else:
+            QNaern[i] = QN[i - 1] + min(Qsol[i-1], min(MS1 * Nmax2, Vmax * T2M[i]))
+    else:
+        if perc_Naer==0:
+            perc_Naer=QN[i-1]/MS1
+        QNaern[i] = QN[i-1]+ min(Qsol[i-1],min(MS1*perc_Naer,Vmax*T2M[i]))
+    return QNaern[i]
 
 
-
-# #Accumulation de matiere seche et d'azote dans la culture entre floraison et recolte
-# #def GLAI(n,LAIflo,SENESC,QNveg,QNaerflo,QNGflo):
-#     # LAIflo la surface foliaire de la culture à floraison
-#     # SENESC liste des coefficients de réduction de la surface foliaire sous l’effet de la remobilisation de l’azote.
-#     # QNveg représente la quantité d’azote des parties végétatives de la culture
-#     # QNaerflo la quantité d’azote des parties aériennes de la culture à floraison
-#  #   GLAI[n] = min(GLAI.get(n−1), LAIflo * (SENESC[0] * ln(SENESC[1] * (QNveg.get(n) /(QNarflo − QNGflo)) + SENESC[2])))
-
-# def QNaerien(n,QNaerien,QN,MS):
-# 	#DJ est la liste des degres-jours
-# 	sdj = 0
-# 	for dj in DJ[:n]:
-# 		sdj += dj
-# 	if sdj < 200 :
-# 		QNaerien[n] = QN.get(n-1)+ min(MS.get(j)*pour_Nmax,0.5*Tmoy[n])
-# 	else:
-# 		QNaerien[n] = QN.get(n-1)+ min(MS.get(j)*pour_N[n-1]*Tmoy[n])
-# 	return()
+def f_cas5(n,x1,PAR,T):
+    eb = calcul_eb_post_flo(n)
+    LAIc = GLAI(n)
+    y1 = 1 - math.exp(-k * LAIc)
+    y2 = eb * eimax * PAR
+    return x1 + f_croi(T) * y1 * y2
 
 
+def calcul_eb_post_flo(n):
+    if (QNveg[n]/QNaerflo)>=0.6:
+        return ebflo
+    elif(QNveg[n]/QNaerflo)>0.3:
+        return max(ebflo*SENESCeb*(QNveg[n]/QNaerflo)-1,0)
+    else:
+        return 0
     #QNGrains(3)
 ###############################################################################
 ##################            code           ##################################
@@ -574,22 +624,23 @@ if __name__ == "__main__" :
     par = lectureDonnees(parameters)
     experience = pd.read_csv(args.experience_file, header=None, index_col=False, sep=",")
     exp = lectureDonnees(experience)
-    alpha,delta,beta,gamma,fsdc,Mr,Ma,mu,l,ebmax1,ebmax2,eimax,k,D,R,Vmax,Ncrit1,Ncrit2,Ncrit3,Nmax1,Nmax2,eb1,eb2,eb3,LAI1,LAI2,LAI3,RNG1,RNG2,NGmax,Tmin,Tmax,Toptimum,MSseuil=attributionParametres1(par)
-    Qsol[0],flo, eWinter, Norg, Da, ep, pc_arg, CaCO3,Dapport1,Qapport1,Dapport2,Qapport2,Dapport3,Qapport3,Dapport4,Qapport4,Dapport5,Qapport5=attributionParametres2(exp)
+    alpha,delta,beta,gamma,fsdc,Mr,Ma,mu,l,ebmax1,ebmax2,eimax,k,D,C,R,Vmax,Ncrit1,Ncrit2,Ncrit3,Nmax1,Nmax2,eb1,eb2,eb3,LAI1,LAI2,LAI3,RNG1,RNG2,NGmax,Tmin,Tmax,Toptimum,MSseuil,ebflo,SENESCeb,percNgrainflo,P1Gmax,RDTmax,HP1Gmax,P1G0,WSC,MSaa,aremob,Rem1,SENESC1,SENESC2,SENESC3,DC=attributionParametres1(par)
+    Qsol[0],flo, eWinter,dateepis1cm, Norg, Da, ep, pc_arg, CaCO3,Dapport1,Qapport1,Dapport2,Qapport2,Dapport3,Qapport3,Dapport4,Qapport4,Dapport5,Qapport5=attributionParametres2(exp)
 
     controlData = pd.read_csv(args.control_file, index_col=False, sep=",")
     DOY,IRRAD,T2M,T2MN,T2MX,RAIN,WS10M=lectureControle(controlData)
+
     #print(T2M)
-    last_cycle = 200
+    last_cycle = 310
     # print(args.parameters_file)
     for i in range(0,last_cycle-1):
-        Matseche(i)
+        modelAzodyn(i)
         # print("time :", i, "| Matseche :", Matseche(i))
     DataSetMS = dictToList(MS)
     DataSetQsol = dictToList(Qsol)
-    DataSet=dict()
+    DataSet={}
     for i in range(0, len(DataSetMS)):
-        DataSet[i] = [DataSetMS[i][0], "MS", DataSetMS[i][0]+1, "MS", DataSetMS[i][1],"Qsol",DataSetQsol[i][1]]
-    print(DataSet)
-    df = pd.DataFrame(data = DataSet, columns=['#id','observation_model','time','variable1','value1','variable2','value2' ])
-    df.to_csv(args.output_file, index =False)#header=None, sep ="\t"
+        DataSet[i] = str(DataSetMS[i][0])+",MS,"+str(DataSetMS[i][0]+1)+",MS,"+ str(DataSetMS[i][1])+",Qsol,"+str(DataSetQsol[i][1])
+    #print(DataSet)
+    df = pd.DataFrame(list(DataSet.items()), columns=['#id','observation_model,time,variable1,value1,variable2value2' ])
+    df.to_csv(args.output_file,sep=",", index =False)#header=None, sep ="\t"
