@@ -46,6 +46,7 @@ def lectureControle(controlData):
     T2MN={} #Min Ait Temperatire At 2 m Aboce The Surface Of The Earth(degreesC)
     T2MX = {}  # Max Ait Temperatire At 2 m Aboce The Surface Of The Earth(degreesC)
     RAIN = {} #Average Precipitation (mm/day)
+    HUM = {} #Relative Humidity At 2 m
     WS10M = {} #Wind Speed At 10 m Above The Surface Of The Earth (m/s)
     for k in range(n):
         DOY[k]=controlData["DOY"][k]-299
@@ -55,7 +56,8 @@ def lectureControle(controlData):
         T2MX[k] = controlData["T2MX"][k]
         RAIN[k]=controlData["RAIN"][k]
         WS10M[k]=controlData["WS10M"][k]
-    return(DOY,IRRAD,T2M,T2MN,T2MX,RAIN,WS10M)
+	HUM[k]=controlData["RH2M"][k]
+    return(DOY,IRRAD,T2M,T2MN,T2MX,RAIN,WS10M,HUM)
 
 
 ###PARAMETERS
@@ -175,7 +177,6 @@ QNaerflo=0
 perc_Naer=0
 
 S_JN=0
-Hum={0:0}
 MS1Gpot=dict()
 MSGn=dict()
 Vitrem=dict()
@@ -527,12 +528,12 @@ def BMpotG(n,MS1Gpot,JN):
 def H(average_H):
     return 0.2+0.8*(average_H-0.1)/(0.7-0.6)
 
-def Humidity_fake(n):
-    Hum[n]=0.5
+#def Humidity_fake(n):
+#    Hum[n]=0.5
 #Normalised day
 def JN(n):
     # JN la durée en jours normalises de la phase floraison, (jours normalises : Un jour normalise correspond a un jour à une temperature de 15°C
-    Humidity_fake(n)
+    #Humidity_fake(n)
     res=fmin(T2M[n],Toptimum)*H(Hum[n])
     return res
 
@@ -628,7 +629,7 @@ if __name__ == "__main__" :
     Qsol[0],flo, eWinter,dateepis1cm, Norg, Da, ep, pc_arg, CaCO3,Dapport1,Qapport1,Dapport2,Qapport2,Dapport3,Qapport3,Dapport4,Qapport4,Dapport5,Qapport5=attributionParametres2(exp)
 
     controlData = pd.read_csv(args.control_file, index_col=False, sep=",")
-    DOY,IRRAD,T2M,T2MN,T2MX,RAIN,WS10M=lectureControle(controlData)
+    DOY,IRRAD,T2M,T2MN,T2MX,RAIN,WS10M,Hum=lectureControle(controlData)
 
     #print(T2M)
     last_cycle = 310
